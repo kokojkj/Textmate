@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textmate - A Nice Legacy Notepad Remake</title>
+    <style>
+        :root {
+            --bg-primary: #11111b;
+            --bg-secondary: #1e1e2e;
+            --text-primary: #cdd6f4;
+            --accent-color: #89b4fa;
+            --highlight-color: #f9e2af;
+            --button-hover: #313244;
+        }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Cascadia Code', 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #status-bar {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            align-items: center;
+        }
+        #filename-container {
+            display: flex;
+            align-items: center;
+        }
+        #filename {
+            margin-right: 10px;
+            cursor: text;
+            transition: color 0.3s ease;
+        }
+        #filename:hover {
+            color: var(--accent-color);
+        }
+        #filename-edit {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--accent-color);
+            padding: 2px;
+            display: none;
+        }
+        #editor {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: none;
+            outline: none;
+            padding: 10px;
+            resize: none;
+            font-family: 'Cascadia Code', 'Courier New', Courier, monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--bg-secondary);
+        }
+        #editor::-webkit-scrollbar {
+            width: 10px;
+        }
+        #editor::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        #editor::-webkit-scrollbar-thumb {
+            background-color: var(--accent-color);
+            border-radius: 6px;
+        }
+        #command-bar {
+            background-color: var(--bg-secondary);
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-top: 1px solid var(--button-hover);
+        }
+        .button {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--accent-color);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+        .button:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-1px);
+        }
+        .button:active {
+            transform: translateY(1px);
+        }
+        .button i {
+            font-style: normal;
+            color: var(--accent-color);
+        }
+        .cmd-spacer {
+            width: 1px;
+            height: 24px;
+            background-color: var(--button-hover);
+            margin: 0 4px;
+        }
+        #status-indicators {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #status {
+            margin-right: 10px;
+            font-size: 0.8em;
+        }
+        .saved {
+            color: #a6e3a1;
+        }
+        .unsaved {
+            color: #f38ba8;
+        }
+        #theme-toggle {
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 1.2em;
+        }
+        #word-count {
+            color: var(--accent-color);
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+	 .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: var(--bg-secondary);
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid var(--accent-color);
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            color: var(--text-primary);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .shortcut-items {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+        }
+
+        .shortcut-keys {
+            background-color: var(--bg-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .search-highlight {
+            background-color: var(--highlight-color);
+            color: var(--bg-primary);
+        }
+    </style>
+</head>
+<body>
+    <div id="status-bar">
+        <div id="filename-container">
+            <span id="filename">Untitled</span>
+            <input type="text" id="filename-edit">
+        </div>
+        <div id="status-indicators">
+            <span id="word-count">Words: 0</span>
+            <span id="status" class="saved">✓ Saved</span>
+            <span id="cursor-position">Line 1, Column 1</span>
+            <span id="theme-toggle" title="Toggle Theme">🌓</span>
+        </div>
+    </div>
+
+    <textarea id="editor" spellcheck="false" placeholder="Start typing your text here..."></textarea>
+
+     <div id="command-bar">
+        <button class="button" onclick="newFile()">
+            <i>+</i> New
+        </button>
+        <button class="button" onclick="openFile()">
+            <i>📂</i> Open
+        </button>
+        <button class="button" onclick="saveFile()">
+            <i>💾</i> Save
+        </button>
+        <div class="cmd-spacer"></div>
+        <button class="button" onclick="toggleWordWrap()">
+            <i>↵</i> Word Wrap
+        </button>
+        <button class="button" onclick="searchInText()">
+            <i>🔍</i> Find
+        </button>
+        <button class="button" onclick="showShortcuts()">
+            <i>⌨️</i> Shortcuts
+        </button>
+    </div>
+	  <div id="shortcuts-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="hideShortcuts()">&times;</span>
+            <h2>Keyboard Shortcuts</h2>
+            <div class="shortcut-grid">
+                <div class="shortcut-items">
+                    <span>New File</span>
+                    <span class="shortcut-keys">Ctrl + N</span>
+                </div>
+                <div class="shortcut-items">
+                    <span>Open File</span>
+                    <span class="shortcut-keys">Ctrl + O</span>
+                </div>
+                <div class="shortcut-items">
+                    <span>Save File</span>
+                    <span class="shortcut-keys">Ctrl + S</span>
+                </div>
+                <div class="shortcut-items">
+                    <span>Find Text</span>
+                    <span class="shortcut-keys">Ctrl + F</span>
+                </div>
+                <div class="shortcut-items">
+                    <span>Show Shortcuts</span>
+                    <span class="shortcut-keys">Ctrl + K</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>const editor = document.getElementById('editor');
+const filenameDisplay = document.getElementById('filename');
+const filenameEdit = document.getElementById('filename-edit');
+const cursorPositionDisplay = document.getElementById('cursor-position');
+const saveStatus = document.getElementById('status');
+const themeToggle = document.getElementById('theme-toggle');
+const wordCountDisplay = document.getElementById('word-count');
+
+let currentFile = null;
+let isSaved = true;
+let fileHandle = null;
+let isDarkMode = true;
+let currentSearchMatches = [];
+let currentMatchIndex = 0;
+
+function updateWordCount() {
+    const text = editor.value.trim();
+    const wordCount = text ? text.split(/\s+/).length : 0;
+    wordCountDisplay.textContent = `Words: ${wordCount}`;
+}
+
+function updateEditorMetrics() {
+    const content = editor.value;
+    const selectionStart = editor.selectionStart;
+    const lines = content.substr(0, selectionStart).split('\n');
+    const currentLine = lines.length;
+    const currentColumn = lines[currentLine - 1].length + 1;
+    
+    cursorPositionDisplay.textContent = `Line ${currentLine}, Column ${currentColumn}`;
+    
+    if (isSaved) {
+        saveStatus.textContent = '✓ Saved';
+        saveStatus.classList.remove('unsaved');
+        saveStatus.classList.add('saved');
+    } else {
+        saveStatus.textContent = '• Unsaved';
+        saveStatus.classList.remove('saved');
+        saveStatus.classList.add('unsaved');
+    }
+
+    updateWordCount();
+}
+
+editor.addEventListener('input', function() {
+    updateEditorMetrics();
+    isSaved = false;
+});
+
+editor.addEventListener('keyup', updateEditorMetrics);
+editor.addEventListener('click', updateEditorMetrics);
+
+themeToggle.addEventListener('click', function() {
+    isDarkMode = !isDarkMode;
+    document.body.style.setProperty('--bg-primary', isDarkMode ? '#11111b' : '#f0f0f0');
+    document.body.style.setProperty('--bg-secondary', isDarkMode ? '#1e1e2e' : '#e0e0e0');
+    document.body.style.setProperty('--text-primary', isDarkMode ? '#cdd6f4' : '#000000');
+    themeToggle.textContent = isDarkMode ? '🌓' : '🌞';
+});
+
+filenameDisplay.addEventListener('click', enableFilenameEdit);
+filenameEdit.addEventListener('blur', disableFilenameEdit);
+filenameEdit.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        disableFilenameEdit();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+    }
+    if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
+        openFile();
+    }
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        newFile();
+    }
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        searchInText();
+    }
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        showShortcuts();
+    }
+    if (e.key === 'F3') {
+        e.preventDefault();
+        goToNextMatch();
+    }
+});
+
+function enableFilenameEdit() {
+    filenameDisplay.style.display = 'none';
+    filenameEdit.style.display = 'block';
+    filenameEdit.value = filenameDisplay.textContent;
+    filenameEdit.focus();
+    filenameEdit.select();
+}
+
+function disableFilenameEdit() {
+    let newFilename = filenameEdit.value.trim();
+    filenameDisplay.textContent = newFilename || 'Untitled';
+    currentFile = newFilename;
+    filenameEdit.style.display = 'none';
+    filenameDisplay.style.display = 'block';
+    isSaved = false;
+    updateEditorMetrics();
+}
+
+async function saveFile() {
+    if (!fileHandle) {
+        try {
+            fileHandle = await window.showSaveFilePicker({
+                suggestedName: currentFile || 'Untitled',
+                types: [{
+                    description: 'Text Files',
+                    accept: {'text/plain': ['.txt']}
+                }]
+            });
+        } catch (err) {
+            return;
+        }
+    }
+
+    try {
+        const writable = await fileHandle.createWritable();
+        await writable.write(editor.value);
+        await writable.close();
+
+        isSaved = true;
+        currentFile = fileHandle.name;
+        filenameDisplay.textContent = currentFile;
+        updateEditorMetrics();
+    } catch (err) {
+        console.error('Error saving file:', err);
+        alert('Error saving file');
+    }
+}
+
+async function openFile() {
+    try {
+        const [handle] = await window.showOpenFilePicker({
+            types: [{
+                description: 'Text Files',
+                accept: {'text/plain': ['.txt']}
+            }],
+            multiple: false
+        });
+
+        const file = await handle.getFile();
+        const contents = await file.text();
+
+        editor.value = contents;
+        fileHandle = handle;
+        currentFile = handle.name;
+        filenameDisplay.textContent = currentFile;
+        isSaved = true;
+        updateEditorMetrics();
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error('Error opening file:', err);
+            alert('Error opening file');
+        }
+    }
+}
+
+function newFile() {
+    if (!isSaved && !confirm('Discard unsaved changes?')) {
+        return;
+    }
+    
+    editor.value = '';
+    currentFile = null;
+    fileHandle = null;
+    isSaved = true;
+    filenameDisplay.textContent = 'Untitled';
+    updateEditorMetrics();
+}
+
+function searchInText() {
+    const searchTerm = prompt('Enter text to search:');
+    if (!searchTerm) return;
+
+    const text = editor.value;
+    const regex = new RegExp(searchTerm, 'gi');
+    currentSearchMatches = [];
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+        currentSearchMatches.push({
+            start: match.index,
+            end: match.index + searchTerm.length
+        });
+    }
+
+    if (currentSearchMatches.length > 0) {
+        currentMatchIndex = 0;
+        highlightMatch(currentSearchMatches[currentMatchIndex]);
+        
+        if (currentSearchMatches.length > 1) {
+            alert(`Found ${currentSearchMatches.length} matches. use F3 to cycle through them.`);
+        }
+    } else {
+        alert('Text not found');
+    }
+}
+
+function highlightMatch(match) {
+    editor.focus();
+    editor.setSelectionRange(match.start, match.end);
+    editor.scrollIntoView({
+        block: 'center'
+    });
+}
+
+function goToNextMatch() {
+    if (currentSearchMatches.length > 0) {
+        currentMatchIndex = (currentMatchIndex + 1) % currentSearchMatches.length;
+        highlightMatch(currentSearchMatches[currentMatchIndex]);
+    }
+}
+
+function showShortcuts() {
+    document.getElementById('shortcuts-modal').style.display = 'block';
+}
+
+function hideShortcuts() {
+    document.getElementById('shortcuts-modal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('shortcuts-modal');
+    if (event.target === modal) {
+        hideShortcuts();
+    }
+}
+
+function toggleWordWrap() {
+    editor.style.whiteSpace = editor.style.whiteSpace === 'nowrap' ? 'pre-wrap' : 'nowrap';
+}
+
+window.addEventListener('beforeunload', function(e) {
+    if (!isSaved) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+updateEditorMetrics();
+    </script>
+</body>
+</html>
